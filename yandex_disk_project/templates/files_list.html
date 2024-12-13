@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Список файлов</title>
+    <!-- Загружаем статические файлы (CSS, изображения и т.д.) -->
+    {% load static %}
+    <!-- Подключаем внешний CSS файл -->
+    <link rel="stylesheet" type="text/css" href="{% static 'css/styles.css' %}">
+</head>
+<body>
+    <h1>Файлы по публичной ссылке</h1>
+    <!-- Форма для ввода публичной ссылки и фильтрации по типу файлов -->
+    <div class="form-container">
+        <form method="post" id="filterForm">
+            {% csrf_token %}
+            <!-- Поле для ввода публичной ссылки -->
+            <label for="public_key">Введите публичную ссылку:</label>
+            <input type="text" id="public_key" name="public_key" value="{{ public_key }}" required>
+            <!-- Селектор для фильтрации файлов по типу -->
+            <label for="file_type">Фильтровать по типу:</label>
+            <select name="file_type" id="file_type">
+                <option value="all" {% if file_type == "all" %}selected{% endif %}>Все файлы</option>
+                <option value="document" {% if file_type == "document" %}selected{% endif %}>Документы</option>
+                <option value="image" {% if file_type == "image" %}selected{% endif %}>Изображения</option>
+            </select>
+
+            <button type="submit">Показать файлы</button>
+        </form>
+    </div>
+    <!-- Проверка, есть ли элементы (файлы/папки) для отображения -->
+    {% if items %}
+        <form method="post" id="downloadForm">
+            {% csrf_token %}
+            <input type="hidden" name="public_key" value="{{ public_key }}">
+            <!-- Список файлов, которые можно скачать -->
+            <div class="file-list">
+                {% for item in items %}
+                    <div class="file-item">
+                        <strong>{{ item.name }}</strong>
+                        {% if item.type == "dir" %}
+                            <p>(Папка)</p>
+                        {% elif item.type == "file" %}
+                            <p>(Файл)</p>
+                            <input type="checkbox" class="file-checkbox" name="file_paths" value="{{ item.path }}">
+                        {% else %}
+                            <p>Неизвестный тип: {{ item.type }}</p>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+
+            <button type="button" onclick="startDownload()">Скачать выбранные файлы</button>
+        </form>
+    {% else %}
+        <p>Файлы не найдены или ссылка неправильная.</p>
+    {% endif %}
+    <!-- Скрипт для обработки скачивания выбранных файлов -->
+    <script>
+        function startDownload() {
+            // Получаем форму для скачивания
+            const form = document.getElementById('downloadForm');
+            // Получаем все отмеченные чекбоксы для файлов
+            const checkboxes = document.querySelectorAll('.file-checkbox:checked');
+            // Проверка, если не выбраны файлы
+            if (checkboxes.length === 0) {
+                alert('Выберите хотя бы один файл!');
+                return;
+            }
+
+            // Последовательно отправляем запросы на скачивание
+            checkboxes.forEach((checkbox, index) => {
+                setTimeout(() => {
+                    const filePath = checkbox.value;
+                    // Создаем объект FormData для отправки данных
+                    const formData = new FormData();
+                    // Добавляем данные в форму
+                    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                    formData.append('public_key', '{{ public_key }}');
+                    formData.append('file_path', filePath);
+                    // Отправляем запрос на сервер для скачивания файла
+                    fetch("{% url 'download_file' %}", {
+                        method: "POST",
+                        body: formData
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            return response.blob();
+                        } else {
+                            alert(`Ошибка скачивания файла: ${filePath}`);
+                            throw new Error(`Failed to download file: ${response.statusText}`);
+                        }
+                    })
+                    .then(blob => {
+                        // Создаем URL для скачиваемого файла
+                        const url = window.URL.createObjectURL(blob);
+                        // Создаем элемент <a> для скачивания файла
+                        const a = document.createElement('a');
+                        a.style.display = 'none';
+                        a.href = url;
+                        a.download = filePath.split('/').pop(); // Используем имя файла для скачивания
+                        document.body.appendChild(a);
+                        a.click();// Инициируем клик для начала скачивания
+                        window.URL.revokeObjectURL(url);// Освобождаем URL
+                    })
+                    .catch(error => console.error(error));// Обрабатываем ошибку
+                }, index * 1000); // Задержка 1 секунда между скачиваниями
+            });
+        }
+    </script>
+</body>
+</html>
