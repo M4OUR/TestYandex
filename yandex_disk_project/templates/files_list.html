@@ -4,9 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Список файлов</title>
-    <!-- Загружаем статические файлы (CSS, изображения и т.д.) -->
     {% load static %}
-    <!-- Подключаем внешний CSS файл -->
     <link rel="stylesheet" type="text/css" href="{% static 'css/styles.css' %}">
 </head>
 <body>
@@ -99,13 +97,13 @@
                         const a = document.createElement('a');
                         a.style.display = 'none';
                         a.href = url;
-                        a.download = filePath.split('/').pop(); // Используем имя файла для скачивания
+                        a.download = filePath.split('/').pop();
                         document.body.appendChild(a);
-                        a.click();// Инициируем клик для начала скачивания
-                        window.URL.revokeObjectURL(url);// Освобождаем URL
+                        a.click();
+                        window.URL.revokeObjectURL(url);
                     })
-                    .catch(error => console.error(error));// Обрабатываем ошибку
-                }, index * 1000); // Задержка 1 секунда между скачиваниями
+                    .catch(error => console.error(error));
+                }, index * 1000);
             });
         }
     </script>
